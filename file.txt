@@ -1,0 +1,80 @@
+import configparser
+import mmap
+import os
+import time
+
+import mmap
+
+
+def search_file(pattern: bytes, filename: str) -> int:
+    """
+    Search for a pattern in a file using memory mapping.
+
+    Args:
+        pattern (bytes): The pattern to search for, provided as bytes.
+        filename (str): The name of the file to search within.
+
+    Returns:
+        int: The line number (1-indexed) of the first occurrence of the pattern in the file.
+             Returns -1 if the pattern is not found.
+
+    Note:
+        This function uses memory mapping for efficient file handling.
+    """
+    with open(filename, 'r', encoding='utf-8') as f:
+        with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+            index = mm.find(pattern)  # Find the first occurrence of the pattern
+            while index != -1:  # Loop until no further occurrences are found
+                start_index = index
+                end_index = start_index + len(pattern)
+                # Check if the pattern is at the beginning or end of a line
+                if (start_index == 0 or mm[start_index - 1] == ord('\n')) and \
+                        (end_index == len(mm) or mm[end_index] in (ord('\n'), ord('\r'))):
+                    # Return the line number (1-indexed) of the first occurrence
+                    return mm[:index].count(b'\n') + 1
+                else:
+                    # Find the next occurrence of the pattern
+                    index = mm.find(pattern, index + 1)
+    # Return -1 if the pattern is not found in the file
+    return -1
+
+
+#
+# file_path: str = os.environ.get('linuxpath')
+# if file_path is None:
+#     print("Error: File path environment variable 'linuxpath' not found.")
+#     exit()
+#
+
+# file_path = '200k.txt'
+
+
+reread_query = os.environ.get('REREAD_ON_QUERY')
+if reread_query == 'true':
+    reread = True
+else:
+    reread = False
+
+
+def main(data: bytes) -> bool:
+    """Main function to search for a pattern in a file.
+
+    Args:
+        data (bytes): The pattern to search for in the file.
+
+    Returns:
+        bool: True if the pattern is found, False otherwise.
+    """
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    filename = config.get('FilePath', 'linuxpath')
+    reread_on_query = config.getboolean('Options', 'reread_on_query', fallback=False)
+    result = search_file(data, filename)
+    if result != -1:
+        found_pattern = True
+    else:
+        found_pattern = False
+    return found_pattern
+#
+# search = b'13;0;1;28;0;11;3;0;'
+# print(main(search))
